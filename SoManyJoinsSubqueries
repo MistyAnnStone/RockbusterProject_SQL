@@ -1,0 +1,59 @@
+# Q: How many joins can we include in one query and still keep track of them all?
+## A: ... one more!
+
+This query includes several joins and aggregations to output the countries from which the top five customers are, as well as the total number of customers in each of these countries. 
+
+SELECT A.country,
+	COUNT(DISTINCT D.customer_id) AS all_customer_count,
+	COUNT(top_5_customer) AS top_5_customer
+
+FROM country A
+JOIN city B ON A.country_id = B.country_id
+JOIN address C ON B.city_id = C.city_id
+JOIN customer D ON C.address_id = D.address_id
+LEFT JOIN 
+
+
+	(SELECT A.customer_id AS id,
+		A.first_name,
+		A.last_name,
+		D.country AS country_a,
+		C.city,
+		SUM(amount) AS total_amount
+	FROM customer A
+	JOIN address B ON A.address_id = B.address_id
+	JOIN city C ON B.city_id = C.city_id
+	JOIN country D ON C.country_id = D.country_id
+	JOIN payment E ON E.customer_id = A.customer_id
+	WHERE city IN
+
+		(SELECT C.city
+		FROM customer A
+		JOIN address B ON A.address_id = B.address_id
+		JOIN city C ON B.city_id = C.city_id
+		JOIN country D ON C.country_id = D.country_id
+		WHERE country IN
+
+			(SELECT D.country
+			FROM customer A
+			JOIN address B ON A.address_id = B.address_id
+			JOIN city C ON B.city_id = C.city_id
+			JOIN country D ON C.country_id = D.country_id
+			GROUP BY country
+			ORDER BY COUNT(customer_id) DESC
+			LIMIT 10)
+	
+		GROUP BY country, city
+		ORDER BY COUNT(customer_id) DESC
+		LIMIT 10)
+
+	GROUP BY id, country, city
+	ORDER BY total_amount DESC
+	LIMIT 5) AS top_5_customer
+
+ON A.country = top_5_customer.country_a
+
+
+GROUP BY country
+HAVING COUNT(top_5_customer)>0
+ORDER BY COUNT(top_5_customer), COUNT(D.customer_id) DESC
